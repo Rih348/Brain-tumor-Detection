@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+
+# Training artifacts
+outputs/
+outputs_smoke/
+*.pt
+
+# OS/editor
+.DS_Store
