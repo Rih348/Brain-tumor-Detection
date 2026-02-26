@@ -42,7 +42,7 @@ Supported image types: `.jpg .jpeg .png .bmp .tif .tiff .webp`
 ## 2) Install dependencies
 
 ```bash
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
@@ -53,7 +53,7 @@ pip install -r requirements.txt
 ## 3) Run training (5-fold CV, recommended)
 
 ```bash
-python scripts/train_cv.py \
+python3 scripts/train_cv.py \
   --data-dir data \
   --output-dir outputs \
   --model-name resnet18 \
@@ -80,7 +80,7 @@ If you do not have GPU, add:
 Run a shorter job first:
 
 ```bash
-python scripts/train_cv.py \
+python3 scripts/train_cv.py \
   --data-dir data \
   --output-dir outputs_smoke \
   --epochs 2 \
