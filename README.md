@@ -102,6 +102,8 @@ After training:
   - `outputs/fold_1/history.csv`
 - Per-fold best metrics:
   - `outputs/fold_1/best_metrics.json`
+- Per-fold best-epoch validation predictions (for threshold tuning):
+  - `outputs/fold_1/val_predictions_best.csv`
 - CV aggregate table:
   - `outputs/cv_results.csv`
 - CV summary (mean/std):
@@ -124,3 +126,26 @@ Metrics include:
 3. Use patient-level splits when multiple images come from same patient.
 4. Review false negatives first.
 5. Increase data over time; 500 images is a good prototype start, not final clinical quality.
+
+---
+
+## 7) Recommend a threshold for higher sensitivity
+
+After training finishes, run:
+
+```bash
+python3 scripts/recommend_threshold.py \
+  --outputs-dir outputs \
+  --min-sensitivity 0.90 \
+  --out-csv outputs/threshold_sweep.csv \
+  --out-json outputs/threshold_recommendation.json
+```
+
+This will:
+
+- load all `fold_*/val_predictions_best.csv` files
+- sweep thresholds from `0.05` to `0.95` (step `0.01`)
+- recommend the threshold with highest specificity while keeping sensitivity >= target
+- save full sweep table + JSON recommendation
+
+If no threshold reaches the requested sensitivity, it falls back to the highest-sensitivity option.

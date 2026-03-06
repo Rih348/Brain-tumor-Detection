@@ -181,7 +181,7 @@ def run_epoch(
     optimizer: torch.optim.Optimizer | None = None,
     scaler: torch.cuda.amp.GradScaler | None = None,
     use_amp: bool = False,
-) -> Tuple[float, Dict[str, float]]:
+) -> Tuple[float, Dict[str, float], np.ndarray, np.ndarray]:
     is_train = optimizer is not None
     model.train(is_train)
 
@@ -224,7 +224,7 @@ def run_epoch(
     y_true = np.concatenate(all_targets)
     y_prob = sigmoid_numpy(np.concatenate(all_logits))
     metrics = compute_metrics(y_true, y_prob)
-    return avg_loss, metrics
+    return avg_loss, metrics, y_true, y_prob
 
 
 def save_json(data: Dict[str, object], path: Path) -> None:
@@ -283,6 +283,8 @@ def train_one_fold(
     best_score = -float("inf")
     best_epoch = -1
     best_metrics: Dict[str, float] = {}
+    best_val_true: np.ndarray | None = None
+    best_val_prob: np.ndarray | None = None
     epochs_without_improvement = 0
     history: List[Dict[str, float]] = []
     backbone_unfrozen = args.freeze_epochs <= 0
@@ -294,7 +296,7 @@ def train_one_fold(
             scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="max", factor=0.5, patience=2)
             backbone_unfrozen = True
 
-        train_loss, train_metrics = run_epoch(
+        train_loss, train_metrics, _, _ = run_epoch(
             model=model,
             loader=train_loader,
             criterion=criterion,
@@ -303,7 +305,7 @@ def train_one_fold(
             scaler=scaler,
             use_amp=amp_enabled,
         )
-        val_loss, val_metrics = run_epoch(
+        val_loss, val_metrics, val_true, val_prob = run_epoch(
             model=model,
             loader=val_loader,
             criterion=criterion,
@@ -344,6 +346,8 @@ def train_one_fold(
             best_score = score
             best_epoch = epoch
             best_metrics = val_metrics
+            best_val_true = val_true.copy()
+            best_val_prob = val_prob.copy()
             epochs_without_improvement = 0
             checkpoint = {
                 "model_name": args.model_name,
@@ -364,6 +368,17 @@ def train_one_fold(
 
     history_df = pd.DataFrame(history)
     history_df.to_csv(fold_dir / "history.csv", index=False)
+
+    if best_val_true is not None and best_val_prob is not None:
+        best_val_pred = (best_val_prob >= 0.5).astype(np.int64)
+        val_predictions_df = pd.DataFrame(
+            {
+                "y_true": best_val_true.astype(np.int64),
+                "y_prob": best_val_prob.astype(np.float64),
+                "y_pred_0_5": best_val_pred,
+            }
+        )
+        val_predictions_df.to_csv(fold_dir / "val_predictions_best.csv", index=False)
 
     best_metrics = dict(best_metrics)
     best_metrics.update(
